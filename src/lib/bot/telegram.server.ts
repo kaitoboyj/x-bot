@@ -64,13 +64,14 @@ export function editMessageText(
   });
 }
 
-export function setWebhook(url: string, secret: string) {
-  return call("setWebhook", {
+export function setWebhook(url: string, secret?: string) {
+  const body: Record<string, unknown> = {
     url,
-    secret_token: secret,
     allowed_updates: ["message", "callback_query"],
     drop_pending_updates: false,
-  });
+  };
+  if (secret) body.secret_token = secret;
+  return call("setWebhook", body);
 }
 
 export function getWebhookInfo() {
