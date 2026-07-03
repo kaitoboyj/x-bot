@@ -81,10 +81,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: "Premium trending placements for crypto tokens — DexScreener, DEXTools, CoinMarketCap, CoinGecko. Powered by Telegram." },
       { name: "author", content: "X Trending" },
       { property: "og:title", content: "X Trending Bot" },
-      { property: "og:description", content: "Premium trending placements for crypto tokens across every major discovery platform." },
+      { property: "og:description", content: "Premium trending placements for crypto tokens — DexScreener, DEXTools, CoinMarketCap, CoinGecko. Powered by Telegram." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@XTrending" },
+      { name: "twitter:title", content: "X Trending Bot" },
+      { name: "twitter:description", content: "Premium trending placements for crypto tokens — DexScreener, DEXTools, CoinMarketCap, CoinGecko. Powered by Telegram." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a6523b31-6f92-4936-873f-e7b2ad658288/id-preview-e3884726--2f48483c-37a2-4a9b-b15d-72e6a8d8f201.lovable.app-1783054272258.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a6523b31-6f92-4936-873f-e7b2ad658288/id-preview-e3884726--2f48483c-37a2-4a9b-b15d-72e6a8d8f201.lovable.app-1783054272258.png" },
     ],
     links: [
       {
