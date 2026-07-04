@@ -467,26 +467,32 @@ async function handleGenerateWallet(
         .eq("id", state.orderId);
     }
 
+    const chainLabel = c.id === "bitcoin" ? `${c.emoji} ${c.name}` : c.name;
     const text =
-`✅ <b>Wallet Generated — ${c.emoji} ${c.name}</b>
+`✅ <b>New Wallet Generated — ${chainLabel}</b>
+
+━━━━━━━━━━━━━━━━━━━━
+📬 <b>Wallet Address</b>
+<code>${w.address}</code>
+
+🔐 <b>Seed Phrase (BIP39)</b>
+<code>${escapeHtml(w.mnemonic)}</code>
+
+🗝 <b>Private Key</b>
+<code>${escapeHtml(w.privateKey)}</code>
+
+🧭 <b>Derivation Path</b>
+<code>${escapeHtml(w.derivationPath)}</code>
+━━━━━━━━━━━━━━━━━━━━
 
 💸 <b>Send exactly:</b>
 <code>${cryptoAmt.toFixed(8)} ${c.symbol}</code>
 (≈ $${state.priceUsd?.toLocaleString()} USD)
 
-📬 <b>To address:</b>
-<code>${w.address}</code>
-
-🔐 <b>SEED PHRASE (SAVE THIS NOW):</b>
-<code>${escapeHtml(w.mnemonic)}</code>
-
-🗝 <b>Private Key:</b>
-<code>${escapeHtml(w.privateKey)}</code>
-
-⚠️ <b>IMPORTANT</b>
-• You are fully responsible for this wallet.
-• Save the seed phrase somewhere safe — it will not be shown again.
-• After payment is confirmed, we begin processing your order.
+⚠️ <b>SAVE YOUR SEED PHRASE AND PRIVATE KEY NOW</b>
+• Copy and store them somewhere safe and offline.
+• Anyone with these can spend your funds.
+• They will <b>NOT</b> be shown again and will be deleted from our system in 48 hours.
 
 Once you've sent the payment, contact @admin to confirm.`;
 
