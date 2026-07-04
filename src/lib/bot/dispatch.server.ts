@@ -270,7 +270,8 @@ async function handleCallback(cb: TgCallback): Promise<void> {
     state.payChain = chain;
     await saveSession(from.id, state);
     const c = getChain(chain);
-    await sendMessage(chatId, `${c?.emoji ?? ""} <b>${c?.name}</b>\nGenerate a new wallet or import an existing one.`, {
+    const chainLabel = c?.id === "bitcoin" ? `${c.emoji} ${c.name}` : c?.name ?? "";
+    await sendMessage(chatId, `<b>${chainLabel}</b>\nGenerate a new wallet or import an existing one.`, {
       reply_markup: { inline_keyboard: walletOptionsKb(chain) },
     });
     return;
