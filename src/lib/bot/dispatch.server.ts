@@ -156,6 +156,8 @@ async function handleCallback(cb: TgCallback): Promise<void> {
 
   await notifyAdmin(`🖱 <b>${escapeHtml(data)}</b>\n${formatUser({ telegram_id: from.id, username: from.username, first_name: from.first_name })}`);
 
+  if (data.startsWith("noop:")) return;
+
   if (data === "menu") return showMenu(chatId, from);
 
   if (data.startsWith("svc:")) {

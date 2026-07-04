@@ -11,9 +11,36 @@ export const mainMenuKb: InlineKeyboard = [
 ];
 
 export function packageKb(service: string): InlineKeyboard {
+  if (service === "dexscreener") return dexScreenerPackageKb();
+
   const pkgs = PACKAGES[service] ?? [];
   return [
     ...pkgs.map((p) => [{ text: p.label, callback_data: `pkg:${service}:${p.id}` }]),
+    [{ text: "⬅ Back to main menu", callback_data: "menu" }],
+  ];
+}
+
+function dexScreenerPackageKb(): InlineKeyboard {
+  const pkg = (id: string) => PACKAGES.dexscreener.find((p) => p.id === id)!;
+  return [
+    [
+      { text: "4 Hours — $150", callback_data: `pkg:dexscreener:${pkg("ds_trending_4h").id}` },
+      { text: "12 Hours — $300", callback_data: `pkg:dexscreener:${pkg("ds_trending_12h").id}` },
+    ],
+    [
+      { text: "24 Hours — $500", callback_data: `pkg:dexscreener:${pkg("ds_trending_24h").id}` },
+      { text: "1 Week — $2,000", callback_data: `pkg:dexscreener:${pkg("ds_trending_1w").id}` },
+    ],
+    [{ text: "Dex Boost", callback_data: "noop:dexboost" }],
+    [
+      { text: "10x — $89.10", callback_data: `pkg:dexscreener:${pkg("ds_boost_10x").id}` },
+      { text: "30x — $224.10", callback_data: `pkg:dexscreener:${pkg("ds_boost_30x").id}` },
+      { text: "50x — $359.10", callback_data: `pkg:dexscreener:${pkg("ds_boost_50x").id}` },
+    ],
+    [
+      { text: "100x — $809.10", callback_data: `pkg:dexscreener:${pkg("ds_boost_100x").id}` },
+      { text: "500x Golden — $3,599.10", callback_data: `pkg:dexscreener:${pkg("ds_boost_500x").id}` },
+    ],
     [{ text: "⬅ Back to main menu", callback_data: "menu" }],
   ];
 }

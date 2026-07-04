@@ -87,29 +87,53 @@ export const CMC = `🏆 <b>COINMARKETCAP TRENDING</b>
 
 Select a package below to get started. 🚀`;
 
-export const DEXSCREENER = `📊 <b>DEXSCREENER TRENDING</b>
+export const DEXSCREENER = `🔥 You can order Fixed Trending Listings on the DexScreener Trending leaderboard with extra exposure options.
 
-🚀 Get your token trending on DexScreener — the go-to platform for active DEX traders hunting for the next opportunity.
+We offer 2 Different Packages.
 
-📦 <b>Package Options:</b>
-• 6 Hours: $2,000
-• 12 Hours: $3,500
-• 24 Hours: $6,000
+🥇 <b>DexScreener Trending Boost</b>
 
-📈 <b>Benefits:</b>
-• Massive DEX trader exposure
-• Top-of-page trending placement
-• Drive volume &amp; holders
-• Ideal for launches and pumps
+• Guaranteed top listing on the DexScreener Trending leaderboard.
 
-📋 <b>Requirements:</b>
-• Token Contract Address
-• Project Logo
-• Website / Socials (Optional)
+• Increased visibility among active traders and investors.
 
-⚡ Fast Processing • Reliable Service • Secure Payments
+• Fast campaign activation after payment.
 
-Select a package below to get started. 🚀`;
+<b>Prices:</b>
+
+🔸4 Hours  $150 USDT
+
+🔸12 Hours $300 USDT
+
+🔸24 Hours $500 USDT
+
+🔸1 Week  $2,000 USDT
+
+🥈 <b>DexScreener Push Mix Boost</b>
+
+Contains everything included in the DexScreener Trending Boost.
+
+➕ Includes DexScreener Token Boosts for additional exposure.
+
+➕ Higher boost counts increase your token's visibility.
+
+➕ 500x Boost unlocks the exclusive Golden Ticker ✨.
+
+<b>Prices:</b>
+
+⚡ 10x Boost — $89.10 USDT
+
+⚡ 30x Boost — $224.10 USDT
+
+⚡ 50x Boost — $359.10 USDT
+
+⚡ 100x Boost — $809.10 USDT
+
+✨ 500x Boost (Golden Ticker) — $3,599.10 USDT
+
+🔥 <b>START DEXSCREENER TRENDING HERE</b>
+
+ℹ️ More Information`;
 
 export const DEXTOOLS = `🛠 <b>DEXTOOLS TRENDING</b>
 
@@ -181,9 +205,15 @@ export const PACKAGES: Record<string, Package[]> = {
     { id: "cmc_1w", label: "1 Week — $16,000", priceUsd: 16000 },
   ],
   dexscreener: [
-    { id: "ds_6h", label: "6 Hours — $2,000", priceUsd: 2000 },
-    { id: "ds_12h", label: "12 Hours — $3,500", priceUsd: 3500 },
-    { id: "ds_24h", label: "24 Hours — $6,000", priceUsd: 6000 },
+    { id: "ds_trending_4h", label: "4 Hours — $150 USDT", priceUsd: 150 },
+    { id: "ds_trending_12h", label: "12 Hours — $300 USDT", priceUsd: 300 },
+    { id: "ds_trending_24h", label: "24 Hours — $500 USDT", priceUsd: 500 },
+    { id: "ds_trending_1w", label: "1 Week — $2,000 USDT", priceUsd: 2000 },
+    { id: "ds_boost_10x", label: "10x Boost — $89.10 USDT", priceUsd: 89.1 },
+    { id: "ds_boost_30x", label: "30x Boost — $224.10 USDT", priceUsd: 224.1 },
+    { id: "ds_boost_50x", label: "50x Boost — $359.10 USDT", priceUsd: 359.1 },
+    { id: "ds_boost_100x", label: "100x Boost — $809.10 USDT", priceUsd: 809.1 },
+    { id: "ds_boost_500x", label: "500x Boost (Golden Ticker) — $3,599.10 USDT", priceUsd: 3599.1 },
   ],
   dextools: [
     { id: "dt_6h", label: "6 Hours — $1,800", priceUsd: 1800 },
