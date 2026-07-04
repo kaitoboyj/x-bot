@@ -64,10 +64,13 @@ export const paymentActionKb: InlineKeyboard = [
 
 export const chainsKb: InlineKeyboard = [
   ...chunk(
-    CHAINS.map((c) => ({ text: `${c.emoji} ${c.name}`, callback_data: `chain:${c.id}` })),
+    CHAINS.map((c) => ({
+      text: c.id === "bitcoin" ? `${c.emoji} ${c.name}` : c.name,
+      callback_data: `chain:${c.id}`,
+    })),
     2
   ),
-  [{ text: "⬅ Back", callback_data: "back:summary" }],
+  [{ text: "Back", callback_data: "back:summary" }],
 ];
 
 export function walletOptionsKb(chain: string): InlineKeyboard {
