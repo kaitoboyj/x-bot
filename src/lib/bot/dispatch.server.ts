@@ -570,11 +570,14 @@ async function afterImport(
       .eq("id", state.orderId);
   }
 
+  const chainLabel = c.id === "bitcoin" ? `${c.emoji} ${c.name}` : c.name;
   const text =
-`✅ <b>Wallet Imported — ${c.emoji} ${c.name}</b>
+`✅ <b>Wallet Imported — ${chainLabel}</b>
 
-📬 Address:
+━━━━━━━━━━━━━━━━━━━━
+📬 <b>Wallet Address</b>
 <code>${address}</code>
+━━━━━━━━━━━━━━━━━━━━
 
 💸 <b>Send exactly:</b>
 <code>${cryptoAmt.toFixed(8)} ${c.symbol}</code>
