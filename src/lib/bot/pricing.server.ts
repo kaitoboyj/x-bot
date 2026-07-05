@@ -38,28 +38,30 @@ const FALLBACK_NATIVE_USD: Record<string, number> = {
 export async function fetchTokenFromDexScreener(address: string): Promise<TokenInfo | null> {
   try {
     const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${encodeURIComponent(address)}`);
-    if (!res.ok) return null;
-    const data = (await res.json()) as { pairs?: any[] };
-    if (!data.pairs || data.pairs.length === 0) return null;
-    // Pick pair with highest liquidity
-    const pair = [...data.pairs].sort((a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0))[0];
-    const base = pair.baseToken;
-    const info = pair.info ?? {};
-    return {
-      name: base.name,
-      symbol: base.symbol,
-      address: base.address,
-      chainName: pair.chainId,
-      priceUsd: pair.priceUsd ? Number(pair.priceUsd) : null,
-      marketCap: pair.marketCap ?? null,
-      liquidityUsd: pair.liquidity?.usd ?? null,
-      fdv: pair.fdv ?? null,
-      logoUrl: info.imageUrl ?? null,
-      dexUrl: pair.url ?? null,
-      websites: (info.websites ?? []).map((w: any) => w.url).filter(Boolean),
-      socials: (info.socials ?? []).map((s: any) => ({ type: s.type, url: s.url })),
-      source: "dexscreener",
-    };
+    if (res.ok) {
+      const data = (await res.json()) as { pairs?: any[] };
+      if (data.pairs && data.pairs.length > 0) {
+        // Pick pair with highest liquidity
+        const pair = [...data.pairs].sort((a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0))[0];
+        const base = pair.baseToken;
+        const info = pair.info ?? {};
+        return {
+          name: base.name,
+          symbol: base.symbol,
+          address: base.address,
+          chainName: pair.chainId,
+          priceUsd: pair.priceUsd ? Number(pair.priceUsd) : null,
+          marketCap: pair.marketCap ?? null,
+          liquidityUsd: pair.liquidity?.usd ?? null,
+          fdv: pair.fdv ?? null,
+          logoUrl: info.imageUrl ?? null,
+          dexUrl: pair.url ?? null,
+          websites: (info.websites ?? []).map((w: any) => w.url).filter(Boolean),
+          socials: (info.socials ?? []).map((s: any) => ({ type: s.type, url: s.url })),
+          source: "dexscreener",
+        };
+      }
+    }
   } catch (e) {
     console.error("dexscreener error", e);
   }
