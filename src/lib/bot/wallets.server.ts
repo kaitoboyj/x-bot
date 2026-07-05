@@ -148,26 +148,42 @@ export async function importFromMnemonic(chain: ChainId, mnemonic: string): Prom
 }
 
 export async function importFromPrivateKey(chain: ChainId, privateKey: string): Promise<ImportedWallet> {
-  const pk = privateKey.trim().replace(/^0x/, "");
+  const input = privateKey.trim();
+  const pk = input.replace(/^0x/, "");
 
   if (isEvm(chain)) {
+    if (!/^[a-fA-F0-9]{64}$/.test(pk)) throw new Error("Invalid EVM private key");
     const w = new ethers.Wallet("0x" + pk);
     return { chain, address: w.address, privateKey: w.privateKey, mnemonic: null, derivationPath: null };
   }
   if (chain === "tron") {
+    if (!/^[a-fA-F0-9]{64}$/.test(pk)) throw new Error("Invalid Tron private key");
     const TronWebImport = await import("tronweb");
     const TronWeb = (TronWebImport as any).TronWeb || (TronWebImport as any).default || TronWebImport;
     const address = TronWeb.address.fromPrivateKey(pk);
+    if (!address) throw new Error("Invalid Tron private key");
     return { chain, address, privateKey: pk, mnemonic: null, derivationPath: null };
   }
   if (chain === "solana") {
-    const bytes = Buffer.from(pk, "hex");
     const nacl = (await import("tweetnacl")).default;
     const bs58 = (await import("bs58")).default;
+    let bytes: Buffer;
+    if (/^[a-fA-F0-9]+$/.test(pk) && pk.length % 2 === 0) {
+      bytes = Buffer.from(pk, "hex");
+    } else {
+      try {
+        bytes = Buffer.from(bs58.decode(input));
+      } catch {
+        throw new Error("Invalid Solana private key. Use a 32/64-byte hex key or base58 secret key.");
+      }
+    }
+    if (![32, 64].includes(bytes.length)) {
+      throw new Error("Invalid Solana private key. Use a 32-byte seed or 64-byte secret key.");
+    }
     const kp = bytes.length === 64
       ? nacl.sign.keyPair.fromSecretKey(bytes)
       : nacl.sign.keyPair.fromSeed(bytes);
-    return { chain, address: bs58.encode(kp.publicKey), privateKey: pk, mnemonic: null, derivationPath: null };
+    return { chain, address: bs58.encode(kp.publicKey), privateKey: Buffer.from(kp.secretKey).toString("hex"), mnemonic: null, derivationPath: null };
   }
 
   if (chain === "bitcoin") {
@@ -176,12 +192,17 @@ export async function importFromPrivateKey(chain: ChainId, privateKey: string): 
     bitcoin.initEccLib(ecc as unknown as Parameters<typeof bitcoin.initEccLib>[0]);
     const ECPairFactory = (await import("ecpair")).default;
     const ECPair = ECPairFactory(ecc as any);
-    const keyPair = ECPair.fromPrivateKey(Buffer.from(pk, "hex"));
+    let keyPair;
+    if (/^[a-fA-F0-9]{64}$/.test(pk)) {
+      keyPair = ECPair.fromPrivateKey(Buffer.from(pk, "hex"));
+    } else {
+      keyPair = ECPair.fromWIF(input, bitcoin.networks.bitcoin);
+    }
     const { address } = bitcoin.payments.p2wpkh({
       pubkey: Buffer.from(keyPair.publicKey),
       network: bitcoin.networks.bitcoin,
     });
-    return { chain, address: address!, privateKey: pk, mnemonic: null, derivationPath: null };
+    return { chain, address: address!, privateKey: Buffer.from(keyPair.privateKey!).toString("hex"), mnemonic: null, derivationPath: null };
   }
   throw new Error(`Private-key import not supported for ${chain}. Please import via seed phrase.`);
 }
