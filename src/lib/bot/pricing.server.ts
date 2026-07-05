@@ -126,5 +126,3 @@ export async function convertUsdToCryptoSafe(chain: ChainId, usd: number): Promi
 export async function getNativeUsdPriceSafe(chain: ChainId): Promise<ConversionResult> {
   return convertUsdToCryptoSafe(chain, 1);
 }
-  return usd / price;
-}
